@@ -24,22 +24,50 @@ def init_db():
     conn.commit()
     conn.close()
     
+def safe(x):
+    if x is None:
+        return None
+    if isinstance(x, list):
+        return ','.join(map(str, x))
+    if isinstance(x, dict):
+        return str(x)
+    return x
+    
 def insert_trials(trials, company):
     conn = get_conn()
     cur = conn.cursor()
 
     for t in trials:
+        
         cur.execute("""
         INSERT INTO trials VALUES (?, ?, ?, ?, ?, ?, ?)
         """, (
-            t['nct_id'],
-            company,
-            t['title'],
-            t['phase'],
-            t['status'],
-            t['last_updated'],
-            t['snapshot_date']
+            safe(t['nct_id']),
+            safe(company),
+            safe(t['title']),
+            safe(t['phase']),
+            safe(t['status']),
+            safe(t['last_updated']),
+            safe(t['snapshot_date'])
         ))
+
+    conn.commit()
+    conn.close()
+    
+def init_company_table():
+    conn = get_conn()
+    cur = conn.cursor()
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS company_map (
+        raw_name TEXT PRIMARY KEY,
+        normalized_name TEXT,
+        ticker TEXT,
+        confidence REAL,
+        source TEXT,
+        last_seen TEXT
+    )
+    """)
 
     conn.commit()
     conn.close()

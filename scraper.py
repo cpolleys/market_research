@@ -5,7 +5,7 @@ base_url = 'https://clinicaltrials.gov/api/v2/studies'
 
 def fetch_trials(company_name):
     params = {
-        "query.term": company,
+        "query.term": company_name,
         "pageSize": 100,
         "format": "json"
     }
@@ -24,7 +24,7 @@ def fetch_trials(company_name):
             'phase': info.get('designModule', {}).get('phases'),
             'status': info.get('statusModule', {}).get('overallStatus'),
             'sponsor': info.get('sponsorCollaboratorsModule', {}).get('leadSponsor', {}).get('name'),
-            'last_updated': ps.get('statusModule', {}).get('lastUpdatePostDateStruct', {}).get('date'),
+            'last_updated': info.get('statusModule', {}).get('lastUpdatePostDateStruct', {}).get('date'),
             'snapshot_date': datetime.utcnow().isoformat()
         })
     

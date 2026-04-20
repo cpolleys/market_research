@@ -56,6 +56,9 @@ def normalize_name(name):
     
     return name.strip()
 
+def company_map(name, mappings):
+    norm = normalize_name(name)
+    return mappings.get(norm)
 
 def get_cached_ticker(conn, raw_name):
     cur = conn.cursor()
@@ -75,9 +78,7 @@ def fuzzy_match(conn, name):
 
     return match[0] if match else None
 
-def map_company(name, mappings):
-    norm = normalize_name(name)
-    return mappings.get(norm)
+
 
 def resolve_company_sec(raw_name, companies):
     conn = get_conn()
