@@ -10,12 +10,21 @@ def init_db():
     cur = conn.cursor()
     
     cur.execute("""
-    CREATE TABLE IF NOT EXISTS trials (
+        CREATE TABLE trials (
         nct_id TEXT,
         company TEXT,
+        sponsor TEXT,
         title TEXT,
         phase TEXT,
         status TEXT,
+        study_type TEXT,
+        conditions TEXT,
+        interventions TEXT,
+        enrollment INTEGER,
+        start_date TEXT,
+        primary_completion_date TEXT,
+        primary_outcomes TEXT,
+        secondary_outcomes TEXT,
         last_updated TEXT,
         snapshot_date TEXT
     )
@@ -40,15 +49,24 @@ def insert_trials(trials, company):
     for t in trials:
         
         cur.execute("""
-        INSERT INTO trials VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO trials VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
-            safe(t['nct_id']),
+            safe(t.get("nct_id")),
             safe(company),
-            safe(t['title']),
-            safe(t['phase']),
-            safe(t['status']),
-            safe(t['last_updated']),
-            safe(t['snapshot_date'])
+            safe(t.get("sponsor")),
+            safe(t.get("title")),
+            safe(t.get("phase")),
+            safe(t.get("status")),
+            safe(t.get("study_type")),
+            safe(t.get("conditions")),
+            safe(t.get("interventions")),
+            safe(t.get("enrollment")),
+            safe(t.get("start_date")),
+            safe(t.get("primary_completion_date")),
+            safe(t.get("primary_outcomes")),
+            safe(t.get("secondary_outcomes")),
+            safe(t.get("last_updated")),
+            safe(t.get("snapshot_date"))
         ))
 
     conn.commit()

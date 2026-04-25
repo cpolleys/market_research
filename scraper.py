@@ -18,12 +18,50 @@ def fetch_trials(company_name):
     for study in data.get('studies', []):
         info = study.get('protocolSection', {})
         
+        phase = info.get('designModule', {}).get('phases')
+        if isinstance(phase, list):
+            phase = ",".join(phase)
+            
+        conditions = info.get('conditionsModule', {}).get('conditions')
+        if isinstance(conditions, list):
+            conditions = ",".join(conditions)
+            
+        interventions_raw = info.get('armsInterventionsModule', {}).get('interventions', [])
+        interventions = None
+        if interventions_raw:
+            interventions = ",".join([i.get('name', '') for i in interventions_raw if i.get('name')])
+            
+        outcomes_module = info.get('outcomesModule', {})
+       
+        primary_raw = outcomes_module.get('primaryOutcomes', [])
+        primary_outcomes = None
+        if primary_raw:
+            primary_outcomes = " | ".join([
+                o.get("measure", "") for o in primary_raw if o.get("measure")
+            ])
+        
+        secondary_raw = outcomes_module.get('secondaryOutcomes', [])
+        secondary_outcomes = None
+        if secondary_raw:
+            secondary_outcomes = " | ".join([
+                o.get("measure", "") for o in secondary_raw if o.get("measure")
+            ])
+
+        
         trials.append({
             'nct_id': info.get('identificationModule', {}).get('nctId'),
             'title': info.get('identificationModule', {}).get('briefTitle'),
-            'phase': info.get('designModule', {}).get('phases'),
+            'phase': phase,
             'status': info.get('statusModule', {}).get('overallStatus'),
             'sponsor': info.get('sponsorCollaboratorsModule', {}).get('leadSponsor', {}).get('name'),
+            'study_type': info.get('designModule', {}).get('studyType'),
+            'conditions': conditions,
+            'interventions': interventions,
+            'enrollment': info.get('designModule', {}).get('enrollmentInfo', {}).get('count'),
+            'start_date': info.get('statusModule', {}).get('startDateStruct', {}).get('date'),
+            'primary_completion_date': info.get('statusModule', {}).get('primaryCompletionDateStruct', {}).get('date'),
+            'primary_outcomes': primary_outcomes,
+            'secondary_outcomes': secondary_outcomes,
             'last_updated': info.get('statusModule', {}).get('lastUpdatePostDateStruct', {}).get('date'),
             'snapshot_date': datetime.utcnow().isoformat()
         })
