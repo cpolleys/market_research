@@ -46,12 +46,21 @@ def fetch_trials(company_name):
             secondary_outcomes = " | ".join([
                 o.get("measure", "") for o in secondary_raw if o.get("measure")
             ])
+            
+        fda_flag = info.get("oversightModule", {}).get("isFdaRegulatedDrug")
+        if fda_flag is True:
+            fda_flag = 1
+        elif fda_flag is False:
+            fda_flag = 0
+        else:
+            fda_flag = None
 
         
         trials.append({
             'nct_id': info.get('identificationModule', {}).get('nctId'),
             'title': info.get('identificationModule', {}).get('briefTitle'),
             'phase': phase,
+            'fda_regulated': fda_flag,
             'status': info.get('statusModule', {}).get('overallStatus'),
             'sponsor': info.get('sponsorCollaboratorsModule', {}).get('leadSponsor', {}).get('name'),
             'study_type': info.get('designModule', {}).get('studyType'),

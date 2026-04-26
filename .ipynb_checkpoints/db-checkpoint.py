@@ -16,6 +16,7 @@ def init_db():
         sponsor TEXT,
         title TEXT,
         phase TEXT,
+        fda_regulated INTEGER,
         status TEXT,
         study_type TEXT,
         conditions TEXT,
@@ -49,13 +50,14 @@ def insert_trials(trials, company):
     for t in trials:
         
         cur.execute("""
-        INSERT INTO trials VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO trials VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             safe(t.get("nct_id")),
             safe(company),
             safe(t.get("sponsor")),
             safe(t.get("title")),
             safe(t.get("phase")),
+            safe(t.get("fda_regulated")),
             safe(t.get("status")),
             safe(t.get("study_type")),
             safe(t.get("conditions")),
