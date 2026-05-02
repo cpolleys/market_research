@@ -4,6 +4,7 @@ from difflib import get_close_matches
 import requests
 from datetime import datetime
 from db import get_conn
+import pandas as pd
 
 
 SEC_HEADERS = {
@@ -129,3 +130,17 @@ def get_sec_data():
     data = fetch_sec_tickers()
     save_sec_data(data)
     return data
+
+def get_xbi_holdings():
+    url = "https://www.ssga.com/us/en/individual/etfs/library-content/products/fund-data/etfs/us/holdings-daily-us-en-xbi.xlsx"
+    df = pd.read_excel(url, skiprows=4)
+    print(df)
+    return df["Ticker"].dropna().tolist()
+
+
+def get_ibb_holdings():
+    url = "https://www.ishares.com/us/products/239699/ishares-nasdaq-biotechnology-etf/1467271812596.ajax?fileType=csv&fileName=IBB_holdings&dataType=fund"
+    df = pd.read_csv(url, skiprows=9)
+    return df["Ticker"].dropna().tolist()
+
+

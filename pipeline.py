@@ -1,6 +1,6 @@
 from scraper import fetch_trials
 from db import init_db, init_company_table, insert_trials, get_conn
-from mappings import resolve_company_sec, fetch_sec_tickers
+from mappings import resolve_company_sec, fetch_sec_tickers, get_xbi_holdings, get_ibb_holdings
 from signals import detect_changes, generate_signals
 
 companies = [
@@ -8,6 +8,8 @@ companies = [
     'Pfizer',
     'Regeneron'
 ]
+
+tickers = set(get_xbi_holdings() + get_ibb_holdings())
 
 def run():
     init_db()
