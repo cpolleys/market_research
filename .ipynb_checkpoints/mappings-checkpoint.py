@@ -5,6 +5,7 @@ import requests
 from datetime import datetime
 from db import get_conn
 import pandas as pd
+from io import StringIO
 
 
 SEC_HEADERS = {
@@ -131,16 +132,46 @@ def get_sec_data():
     save_sec_data(data)
     return data
 
+def keep_table(df):
+    header_idx = df.astype(str).apply(
+        lambda row: row.str.contains("Currency", case=False).any(),
+        axis=1
+    ).idxmax()
+    df.columns = df.loc[header_idx]
+    df = df.loc[header_idx + 1:].reset_index(drop=True)
+    df = df[
+        df.astype(str).apply(
+            lambda row: row.str.contains("USD", case=False).any(),
+            axis=1
+        )
+    ].reset_index(drop=True)
+    
+    return df
+    
+
 def get_xbi_holdings():
     url = "https://www.ssga.com/us/en/individual/etfs/library-content/products/fund-data/etfs/us/holdings-daily-us-en-xbi.xlsx"
-    df = pd.read_excel(url, skiprows=4)
-    print(df)
-    return df["Ticker"].dropna().tolist()
+    df = pd.read_excel(url)
+    keep_df = keep_table(df)
+    print(keep_df)
+    
+    return keep_df["Ticker"].dropna().tolist()
 
 
 def get_ibb_holdings():
     url = "https://www.ishares.com/us/products/239699/ishares-nasdaq-biotechnology-etf/1467271812596.ajax?fileType=csv&fileName=IBB_holdings&dataType=fund"
-    df = pd.read_csv(url, skiprows=9)
-    return df["Ticker"].dropna().tolist()
+    text = requests.get(url).text
+    lines = text.splitlines()
+    header_idx = next(i for i, line in enumerate(lines) if "Ticker" in line)
+    df = pd.read_csv(StringIO("\n".join(lines[header_idx:])))
+    keep_df = df[
+        df.astype(str).apply(
+            lambda row: row.str.contains("USD", case=False).any(),
+            axis=1
+        )
+    ].reset_index(drop=True)
+    print(keep_df)
+    
+    return keep_df["Ticker"].dropna().tolist()
 
 
