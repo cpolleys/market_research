@@ -147,15 +147,26 @@ def keep_table(df):
     ].reset_index(drop=True)
     
     return df
+
+def is_valid_ticker(t):
+    return t.isalpha() and 1 <= len(t) <= 5
     
 
 def get_xbi_holdings():
     url = "https://www.ssga.com/us/en/individual/etfs/library-content/products/fund-data/etfs/us/holdings-daily-us-en-xbi.xlsx"
     df = pd.read_excel(url)
     keep_df = keep_table(df)
-    print(keep_df)
     
-    return keep_df["Ticker"].dropna().tolist()
+    tickers = keep_df["Ticker"].astype(str).str.strip().str.upper()
+    names = keep_df["Name"].astype(str).str.strip()
+    
+    records = [
+        {"ticker": t, "name": n}
+        for t, n in zip(tickers, names)
+        if is_valid_ticker(t)
+    ]
+    
+    return records
 
 
 def get_ibb_holdings():
@@ -170,8 +181,39 @@ def get_ibb_holdings():
             axis=1
         )
     ].reset_index(drop=True)
-    print(keep_df)
     
-    return keep_df["Ticker"].dropna().tolist()
+    tickers = keep_df["Ticker"].astype(str).str.strip().str.upper()
+    names = keep_df["Name"].astype(str).str.strip()
+
+    records = []
+
+    records = [
+        {"ticker": t, "name": n}
+        for t, n in zip(tickers, names)
+        if is_valid_ticker(t)
+    ]
+
+    return records
+
+def get_biotech_universe():
+    xbi = get_xbi_holdings()
+    ibb = get_ibb_holdings()
+
+    combined = xbi + ibb
+    
+    seen = {}
+    for c in combined:
+        seen[c["ticker"]] = c["name"]
+
+    return [{"ticker": t, "name": n} for t, n in seen.items()]
+
+def clean_name(name):
+    suffixes = ["inc", "corp", "ltd", "plc", "co", ",", "adr", "class a", "nv", "ag", "clas", "group i", "sa", "series a", "cvr", "representing", "represent", "holdings", ]
+
+    name = name.lower()
+    for s in suffixes:
+        name = name.replace(s, "")
+
+    return name.strip()
 
 
