@@ -9,22 +9,26 @@ def run():
     init_company_table()
     conn = get_conn()
     
+    universe = get_biotech_universe()
+    
     company_data = fetch_sec_tickers()
     
-    for company in companies:
+    num_companies = len(universe)
+    count = 0
+    
+    for c in universe:
+        company = clean_name(c["name"])
         trials = fetch_trials(company)
 
         for trial in trials:
             sponsor = trial['sponsor']
             ticker = resolve_company_sec(sponsor, company_data)
-
-
-            for company in companies:
-                trials = fetch_trials(company)
-                insert_trials(trials, company)
-                trial['company'] = ticker if ticker else sponsor
+            trial['company'] = ticker if ticker else sponsor
                 
         insert_trials(trials, company)
+        
+        count += 1
+        print(f'Scraped company {count} / {num_companies}')
         
     changes = detect_changes()
     signals = generate_signals(changes)
