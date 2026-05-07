@@ -6,7 +6,7 @@ base_url = 'https://clinicaltrials.gov/api/v2/studies'
 def fetch_trials(company_name):
     params = {
         "query.term": company_name,
-        "pageSize": 100,
+        "pageSize": 1000,
         "format": "json"
     }
     

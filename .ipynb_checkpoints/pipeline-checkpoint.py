@@ -9,15 +9,17 @@ def run():
     init_company_table()
     conn = get_conn()
     
-    universe = get_biotech_universe()
+    #universe = get_biotech_universe()
+    universe = {'Moderna', 'Pfizer', 'Regeneron'}
     
     company_data = fetch_sec_tickers()
     
     num_companies = len(universe)
     count = 0
     
-    for c in universe:
-        company = clean_name(c["name"])
+    for company in universe:
+    #for c in universe:
+        #company = clean_name(c["name"])
         trials = fetch_trials(company)
 
         for trial in trials:
