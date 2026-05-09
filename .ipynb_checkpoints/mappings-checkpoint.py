@@ -197,6 +197,9 @@ def get_ibb_holdings():
 
     return records
 
+excluded_names = {"BLK CSH FND TREASURY SL AGENCY", "CASH COLLATERAL USD SGAFT", "USD CASH"}
+excluded_tickers = {"XTSLA", "SGAFT", "USD"}
+
 def get_biotech_universe():
     xbi = get_xbi_holdings()
     ibb = get_ibb_holdings()
@@ -205,17 +208,28 @@ def get_biotech_universe():
     
     seen = {}
     for c in combined:
+        if c["ticker"] in excluded_tickers:
+            continue
+        if c["name"].lower() in excluded_names:
+            continue
         seen[c["ticker"]] = c["name"]
 
     return [{"ticker": t, "name": n} for t, n in seen.items()]
 
 def clean_name(name):
-    suffixes = ["inc", "corp", "ltd", "plc", "co", ",", "adr", "class a", "nv", "ag", "clas", "group i", "sa", "series a", "cvr", "representing", "represent", "holdings", ]
+    suffixes = ["inc", "corp", "ltd", "plc", "co", ",", "adr", "class a", "nv", "ag", "clas", "group i", "sa", "series a", "cvr",    "representing", "represent", "holdings", "strategies", "se", "interna", "american", "depositary shares", "rep", "lt", "one non-v",
+ "n v", "sponsored", "in", "ads", "class", "holding"]
 
-    name = name.lower()
-    for s in suffixes:
-        name = name.replace(s, "")
+    name = name.lower().strip()
+    while True:
+        original = name
+        for s in suffixes:
+            name = re.sub(rf'\b{s}\b\.?$', '', name).strip()
 
+        name = re.sub(r'[,\.\-]+$', '', name).strip()
+        if name == original:
+            break
+    
     return name.strip()
 
 
