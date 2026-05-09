@@ -1,4 +1,5 @@
 import sqlite3
+from datetime import datetime
 
 db_name = 'biotech.db'
 
@@ -10,8 +11,9 @@ def init_db():
     cur = conn.cursor()
     
     cur.execute("""
-        CREATE TABLE trials (
-        nct_id TEXT,
+        CREATE TABLE IF NOT EXISTS trials (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nct_id TEXT NOT NULL,
         company TEXT,
         sponsor TEXT,
         title TEXT,
@@ -27,9 +29,12 @@ def init_db():
         primary_outcomes TEXT,
         secondary_outcomes TEXT,
         last_updated TEXT,
-        snapshot_date TEXT
+        snapshot_date TEXT NOT NULL
+        
     )
     """)
+    
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_nct_snapshot ON trials(nct_id, snapshot_date)")
     
     conn.commit()
     conn.close()
@@ -46,11 +51,24 @@ def safe(x):
 def insert_trials(trials, company):
     conn = get_conn()
     cur = conn.cursor()
+    today = datetime.utcnow().date().isoformat()
 
     for t in trials:
+        nct_id = safe(t.get("nct_id"))
+        
+        cur.execute(
+            "SELECT 1 FROM trials WHERE nct_id = ? AND snapshot_date = ?",
+            (nct_id, today)
+        )
+        if cur.fetchone():
+            continue
         
         cur.execute("""
-        INSERT INTO trials VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO trials (nct_id, company, sponsor, title, phase, fda_regulated, status, 
+                    study_type, conditions, interventions, enrollment, start_date, 
+                    primary_completion_date, primary_outcomes, secondary_outcomes, 
+                    last_updated, snapshot_date)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             safe(t.get("nct_id")),
             safe(company),

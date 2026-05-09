@@ -1,5 +1,6 @@
 import json
 import re
+import os
 from difflib import get_close_matches
 import requests
 from datetime import datetime
@@ -11,6 +12,7 @@ from io import StringIO
 SEC_HEADERS = {
     'User-Agent': "Christopher Polleys christopher.polleys@gmail.com"
 }
+SEC_FILE = 'sec_tickers.json'
 
 def fetch_sec_tickers():
     url = 'https://www.sec.gov/files/company_tickers.json'
