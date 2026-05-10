@@ -1,5 +1,6 @@
 import requests
 from datetime import datetime
+import time
 
 base_url = 'https://clinicaltrials.gov/api/v2/studies'
 
@@ -61,7 +62,7 @@ def fetch_trials(company_name):
 
             trials.append({
                 'nct_id': info.get('identificationModule', {}).get('nctId'),
-                'snapshot_date': datetime.utcnow().isoformat(),
+                'snapshot_date': datetime.utcnow().date().isoformat(),
                 'title': info.get('identificationModule', {}).get('briefTitle'),
                 'phase': phase,
                 'fda_regulated': fda_flag,
@@ -81,5 +82,6 @@ def fetch_trials(company_name):
         next_token = data.get("nextPageToken")
         if not next_token:
             break
+        time.sleep(0.5)
     
     return trials
