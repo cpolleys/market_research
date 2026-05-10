@@ -39,6 +39,26 @@ def init_db():
     conn.commit()
     conn.close()
     
+def init_landscape_table():
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS disease_landscape (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nct_id TEXT NOT NULL,
+            condition_searched TEXT NOT NULL,
+            sponsor TEXT,
+            company TEXT,
+            phase TEXT,
+            status TEXT,
+            enrollment INTEGER,
+            primary_completion_date TEXT,
+            snapshot_date TEXT NOT NULL
+        )
+    """)
+    conn.commit()
+    conn.close()
+    
 def safe(x):
     if x is None:
         return None
@@ -106,6 +126,41 @@ def init_company_table():
         last_seen TEXT
     )
     """)
+
+    conn.commit()
+    conn.close()
+    
+def insert_landscape_trials(trials, condition):
+    conn = get_conn()
+    cur = conn.cursor()
+    today = datetime.utcnow().date().isoformat()
+
+    for t in trials:
+        nct_id = safe(t.get("nct_id"))
+        
+        cur.execute(
+            "SELECT 1 FROM disease_landscape WHERE nct_id = ? AND condition_searched = ? AND snapshot_date = ?",
+            (nct_id, condition, today)
+        )
+        if cur.fetchone():
+            continue
+            
+        cur.execute("""
+        INSERT INTO disease_landscape (nct_id, condition_searched, sponsor, company,
+                                       phase, status, enrollment, 
+                                       primary_completion_date, snapshot_date)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            nct_id,
+            safe(condition),
+            safe(t.get("sponsor")),
+            safe(t.get("company")),
+            safe(t.get("phase")),
+            safe(t.get("status")),
+            safe(t.get("enrollment")),
+            safe(t.get("primary_completion_date")),
+            today
+        ))
 
     conn.commit()
     conn.close()
