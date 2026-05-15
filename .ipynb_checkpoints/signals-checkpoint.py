@@ -5,13 +5,26 @@ def detect_changes():
     cur = conn.cursor()
 
     query = """
-    SELECT t1.nct_id, t1.company, t1.status AS new_status, t2.status AS old_status
-    FROM trials t1
-    JOIN trials t2 ON t1.nct_id = t2.nct_id
-    WHERE t1.snapshot_date = (SELECT MAX(snapshot_date) FROM trials WHERE nct_id = t1.nct_id)
-      AND t2.snapshot_date = (SELECT MAX(snapshot_date) FROM trials
-                              WHERE nct_id = t1.nct_id AND snapshot_date < t1.snapshot_date)
-      AND t1.status != t2.status
+    WITH ranked AS (
+        SELECT
+            nct_id,
+            company,
+            status,
+            snapshot_date,
+            ROW_NUMBER() OVER (PARTITION BY nct_id ORDER BY snapshot_date DESC) AS rn
+        FROM trials
+    )
+    SELECT
+        curr.nct_id,
+        curr.company,
+        curr.status   AS new_status,
+        prev.status   AS old_status
+    FROM ranked curr
+    JOIN ranked prev
+        ON curr.nct_id = prev.nct_id
+        AND curr.rn = 1
+        AND prev.rn = 2
+    WHERE curr.status != prev.status
     """
 
     cur.execute(query)
@@ -25,8 +38,15 @@ def generate_signals(changes):
     for nct_id, company, new_status, old_status in changes:
         if new_status == 'COMPLETED':
             signals.append(f'{company}: Trial {nct_id} completed')
-
+ 
         if new_status == 'TERMINATED':
             signals.append(f'{company}: Trial {nct_id} terminated')
+ 
+        noteworthy = {'SUSPENDED', 'WITHDRAWN'}
+        if new_status in noteworthy:
+            signals.append(
+                f'{company}: Trial {nct_id} status changed '
+                f'{old_status} → {new_status}'
+            )
 
     return signals

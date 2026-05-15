@@ -1,5 +1,5 @@
 from scraper import fetch_trials, fetch_trials_by_condition
-from db import init_db, init_company_table, insert_trials, get_conn, init_landscape_table, insert_landscape_trials
+from db import init_db, init_company_table, insert_trials, init_landscape_table, insert_landscape_trials
 from mappings import resolve_company_sec, fetch_sec_tickers, get_biotech_universe, clean_name
 from signals import detect_changes, generate_signals
 
@@ -7,13 +7,14 @@ from signals import detect_changes, generate_signals
 def run():
     init_db()
     init_company_table()
-    conn = get_conn()
     
     universe = get_biotech_universe()
     
     company_data = fetch_sec_tickers()
     
     num_companies = len(universe)
+    total_inserted = 0
+    total_skipped = 0
     count = 0
     
     for c in universe:
@@ -25,10 +26,15 @@ def run():
             ticker = resolve_company_sec(sponsor, company_data)
             trial['company'] = ticker if ticker else sponsor
                 
-        insert_trials(trials, company)
+        inserted, skipped = insert_trials(trials, company)
+        total_inserted += inserted
+        total_skipped += skipped
         
         count += 1
-        print(f'Scraped company {count} / {num_companies}')
+        
+        print(f'[{count}/{num_companies}] {company}: {inserted} new snapshots, {skipped} unchanged')
+ 
+    print(f'\nDone. {total_inserted} total snapshots written, {total_skipped} trials unchanged.')
         
     changes = detect_changes()
     signals = generate_signals(changes)
