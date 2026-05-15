@@ -121,7 +121,7 @@ def insert_trials(trials, company):
                     study_type, conditions, interventions, enrollment, start_date, 
                     primary_completion_date, primary_outcomes, secondary_outcomes, 
                     last_updated, snapshot_date)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             safe(t.get("nct_id")),
             safe(company),
