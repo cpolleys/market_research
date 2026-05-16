@@ -25,7 +25,8 @@ def run():
             sponsor = trial['sponsor']
             ticker = resolve_company_sec(sponsor, company_data)
             trial['company'] = ticker if ticker else sponsor
-                
+        
+        print(f'{company}: fetched {len(trials)} trials')
         inserted, skipped = insert_trials(trials, company)
         total_inserted += inserted
         total_skipped += skipped

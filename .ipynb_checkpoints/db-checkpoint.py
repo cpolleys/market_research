@@ -82,13 +82,19 @@ def _get_last_snapshot(cur, nct_id):
     return cur.fetchone()
 
 def _has_changed(last, trial):
-    """Return True if any tracked field differs from the last snapshot."""
     last_status, last_enrollment, last_pcd = last
-    return (
-        safe(trial.get('status')) != last_status
-        or safe(trial.get('enrollment')) != str(last_enrollment) if last_enrollment is not None else safe(trial.get('enrollment')) is not None
-        or safe(trial.get('primary_completion_date')) != last_pcd
-    )
+
+    status_changed = safe(trial.get('status')) != last_status
+
+    new_enrollment = safe(trial.get('enrollment'))
+    if last_enrollment is not None:
+        enrollment_changed = new_enrollment != str(last_enrollment)
+    else:
+        enrollment_changed = new_enrollment is not None
+
+    pcd_changed = safe(trial.get('primary_completion_date')) != last_pcd
+
+    return status_changed or enrollment_changed or pcd_changed
     
 def insert_trials(trials, company):
     conn = get_conn()
@@ -105,9 +111,13 @@ def insert_trials(trials, company):
             
         last = _get_last_snapshot(cur, nct_id)
         
-        if last is not None and not _has_changed(last, t):
+        if last is None:
+            new += 1
+        elif not _has_changed(last, t):
             skipped += 1
             continue
+        else:
+            changed += 1
         
         cur.execute(
             "SELECT 1 FROM trials WHERE nct_id = ? AND snapshot_date = ?",
@@ -142,8 +152,11 @@ def insert_trials(trials, company):
             safe(t.get("snapshot_date"))
         ))
         
-        inserted += 1
-
+        if cur.rowcount == 1:
+            inserted += 1
+        else:
+            skipped += 1
+    
     conn.commit()
     conn.close()
     
