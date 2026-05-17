@@ -252,7 +252,8 @@ def clean_name(name):
         "inc", "corp", "ltd", "plc", "co", ",", "adr", "class a", "nv", "ag",
         "clas", "group i", "sa", "series a", "cvr", "representing", "represent",
         "holdings", "strategies", "se", "interna", "american", "depositary shares",
-        "rep", "lt", "one non-v", "n v", "sponsored", "in", "ads", "class", "holding"
+        "rep", "lt", "one non-v", "n v", "sponsored", "in", "ads", "class", "holding",
+        "&", "sg", "inc/", "/de/", "s.a", "inc/de", "corp. v", "s.p.a", "n.v", "group",
     ]
 
     name = name.lower().strip()
