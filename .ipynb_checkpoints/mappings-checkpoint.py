@@ -17,13 +17,17 @@ SEC_HEADERS = {
 SIC_CODES = [
     '2836',  # Pharmaceutical preparations
     '2835',  # Diagnostic substances
-    '2830',  # Drugs (broad)
+    '2834',  # Drugs (broad)
     '8731',  # Biotech R&D
     '3841',  # Surgical & medical instruments
     '3845',  # Electromedical equipment
     '3826',  # Laboratory analytical instruments
     '3827',  # Optical instruments
 ]
+
+sponsor_aliases = {
+    'moderna': 'modernatx',
+}
 
 
 def fetch_sec_tickers():
@@ -41,6 +45,7 @@ def fetch_sec_tickers():
         })
 
     return companies
+
 
 def _fetch_ciks_for_sic(sic):
     ciks = set()
@@ -249,21 +254,29 @@ def get_biotech_universe():
 
 def clean_name(name):
     suffixes = [
-        "inc", "corp", "ltd", "plc", "co", ",", "adr", "class a", "nv", "ag",
+        "inc", "corp", "ltd", "plc", "co", "adr", "class a", "nv", "ag",
         "clas", "group i", "sa", "series a", "cvr", "representing", "represent",
         "holdings", "strategies", "se", "interna", "american", "depositary shares",
         "rep", "lt", "one non-v", "n v", "sponsored", "in", "ads", "class", "holding",
-        "&", "sg", "inc/", "/de/", "s.a", "inc/de", "corp. v", "s.p.a", "n.v", "group",
-        "inc./de", "/de", "a/s", "kgaa", "co.", "international"
+        "sg", "de", "kgaa", "international", "a s", "unlimited", "group", "nv", "sa", "spa",
+        "plcuk", "incnew", "ma"
     ]
 
     name = name.lower().strip()
+
+    # Convert slashes to spaces so word-boundary matching works on e.g. "inc/de"
+    name = re.sub(r'[/\\]', ' ', name)
+    name = re.sub(r'\s+', ' ', name).strip()
+    name = re.sub(r'\.', '', name)
+
     while True:
         original = name
         for s in suffixes:
-            name = re.sub(rf'\b{s}\b\.?$', '', name).strip()
+            name = re.sub(rf'\b{re.escape(s)}\b\.?$', '', name).strip()
 
-        name = re.sub(r'[,\.\-]+$', '', name).strip()
+        # Strip trailing punctuation including & and /
+        name = re.sub(r'[,\.\-&/]+$', '', name).strip()
+
         if name == original:
             break
 

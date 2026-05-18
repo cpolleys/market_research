@@ -1,6 +1,6 @@
 from scraper import fetch_trials, fetch_trials_by_condition
 from db import init_db, init_company_table, insert_trials, init_landscape_table, insert_landscape_trials
-from mappings import resolve_company_sec, fetch_sec_tickers, get_biotech_universe, clean_name
+from mappings import resolve_company_sec, fetch_sec_tickers, get_biotech_universe, clean_name, sponsor_aliases
 from signals import detect_changes, generate_signals
 
     
@@ -19,7 +19,8 @@ def run():
     
     for c in universe:
         company = clean_name(c["name"])
-        trials = fetch_trials(company)
+        search_name = sponsor_aliases.get(company, company)
+        trials = fetch_trials(search_name)
 
         for trial in trials:
             sponsor = trial['sponsor']
