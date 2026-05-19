@@ -63,6 +63,57 @@ def init_landscape_table():
     """)
     conn.commit()
     conn.close()
+    
+def init_publications_table():
+    conn = get_conn()
+    cur = conn.cursor()
+ 
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS publications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nct_id TEXT NOT NULL,
+            pmid TEXT NOT NULL,
+            title TEXT,
+            journal TEXT,
+            pub_date TEXT,
+            first_seen TEXT NOT NULL,
+            UNIQUE(nct_id, pmid)
+        )
+    """)
+ 
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_pub_nct ON publications(nct_id)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_pub_seen ON publications(first_seen)")
+ 
+    conn.commit()
+    conn.close()
+ 
+ 
+def insert_publication(nct_id, pub):
+    """
+    Insert a publication if it hasn't been seen before.
+    Returns True if it was new, False if already existed.
+    """
+    conn = get_conn()
+    cur = conn.cursor()
+    today = datetime.utcnow().date().isoformat()
+ 
+    cur.execute("""
+        INSERT OR IGNORE INTO publications (nct_id, pmid, title, journal, pub_date, first_seen)
+        VALUES (?, ?, ?, ?, ?, ?)
+    """, (
+        nct_id,
+        pub['pmid'],
+        pub.get('title'),
+        pub.get('journal'),
+        pub.get('pub_date'),
+        today
+    ))
+ 
+    is_new = cur.rowcount == 1
+    conn.commit()
+    conn.close()
+ 
+    return is_new
 
 
 def safe(x):
