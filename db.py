@@ -63,6 +63,27 @@ def init_landscape_table():
     """)
     conn.commit()
     conn.close()
+    
+def init_market_sizing_table():
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS market_sizing (
+            condition TEXT PRIMARY KEY,
+            annual_us_patients INTEGER,
+            eligible_patient_rate REAL,
+            estimated_drug_price INTEGER,
+            addressable_market REAL,
+            trial_count INTEGER,
+            sponsor_count INTEGER,
+            total_enrollment INTEGER,
+            data_source TEXT,
+            rationale TEXT,
+            snapshot_date TEXT
+        )
+    """)
+    conn.commit()
+    conn.close()
 
 
 def init_publications_table():
