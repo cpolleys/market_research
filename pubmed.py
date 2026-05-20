@@ -4,7 +4,7 @@ import time
 
 EUROPEPMC_URL = 'https://www.ebi.ac.uk/europepmc/webservices/rest/search'
 
-RATE_LIMIT_SLEEP = 0.2
+RATE_LIMIT_SLEEP = 0.1
 
 
 def get_latest_publication(nct_id):

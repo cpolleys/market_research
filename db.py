@@ -63,11 +63,12 @@ def init_landscape_table():
     """)
     conn.commit()
     conn.close()
-    
+
+
 def init_publications_table():
     conn = get_conn()
     cur = conn.cursor()
- 
+
     cur.execute("""
         CREATE TABLE IF NOT EXISTS publications (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -77,43 +78,24 @@ def init_publications_table():
             journal TEXT,
             pub_date TEXT,
             first_seen TEXT NOT NULL,
+            last_checked TEXT NOT NULL,
             UNIQUE(nct_id, pmid)
         )
     """)
- 
+
+    # Track last check time per nct_id even when no publication is found
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS publication_checks (
+            nct_id TEXT PRIMARY KEY,
+            last_checked TEXT NOT NULL
+        )
+    """)
+
     cur.execute("CREATE INDEX IF NOT EXISTS idx_pub_nct ON publications(nct_id)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_pub_seen ON publications(first_seen)")
- 
+
     conn.commit()
     conn.close()
- 
- 
-def insert_publication(nct_id, pub):
-    """
-    Insert a publication if it hasn't been seen before.
-    Returns True if it was new, False if already existed.
-    """
-    conn = get_conn()
-    cur = conn.cursor()
-    today = datetime.utcnow().date().isoformat()
- 
-    cur.execute("""
-        INSERT OR IGNORE INTO publications (nct_id, pmid, title, journal, pub_date, first_seen)
-        VALUES (?, ?, ?, ?, ?, ?)
-    """, (
-        nct_id,
-        pub['pmid'],
-        pub.get('title'),
-        pub.get('journal'),
-        pub.get('pub_date'),
-        today
-    ))
- 
-    is_new = cur.rowcount == 1
-    conn.commit()
-    conn.close()
- 
-    return is_new
 
 
 def safe(x):
@@ -210,6 +192,71 @@ def insert_trials(trials, company):
     conn.close()
 
     return inserted, skipped
+
+
+def was_recently_checked(nct_id, days=7):
+    """Return True if this nct_id was checked for publications within the last N days."""
+    conn = get_conn()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT last_checked FROM publication_checks
+        WHERE nct_id = ?
+    """, (nct_id,))
+    row = cur.fetchone()
+    conn.close()
+
+    if not row:
+        return False
+
+    last = datetime.fromisoformat(row[0]).date()
+    today = datetime.utcnow().date()
+    return (today - last).days < days
+
+
+def mark_checked(nct_id):
+    """Record that this nct_id was checked for publications today."""
+    conn = get_conn()
+    cur = conn.cursor()
+    today = datetime.utcnow().date().isoformat()
+
+    cur.execute("""
+        INSERT OR REPLACE INTO publication_checks (nct_id, last_checked)
+        VALUES (?, ?)
+    """, (nct_id, today))
+
+    conn.commit()
+    conn.close()
+
+
+def insert_publication(nct_id, pub):
+    """
+    Insert a publication if it hasn't been seen before.
+    Returns True if it was new, False if already existed.
+    """
+    conn = get_conn()
+    cur = conn.cursor()
+    today = datetime.utcnow().date().isoformat()
+
+    cur.execute("""
+        INSERT OR IGNORE INTO publications
+            (nct_id, pmid, title, journal, pub_date, first_seen, last_checked)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    """, (
+        nct_id,
+        pub['pmid'],
+        pub.get('title'),
+        pub.get('journal'),
+        pub.get('pub_date'),
+        today,
+        today
+    ))
+
+    is_new = cur.rowcount == 1
+    conn.commit()
+    conn.close()
+
+    return is_new
 
 
 def init_company_table():
