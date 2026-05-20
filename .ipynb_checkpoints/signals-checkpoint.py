@@ -1,4 +1,5 @@
 from db import get_conn
+from datetime import datetime
 
 def detect_changes():
     conn = get_conn()
@@ -19,7 +20,9 @@ def detect_changes():
         curr.nct_id,
         curr.company,
         curr.status   AS new_status,
-        prev.status   AS old_status
+        prev.status   AS old_status,
+        curr.primary_completion_date   AS new_pcd,
+        prev.primary_completion_date   AS old_pcd
     FROM ranked curr
     JOIN ranked prev
         ON curr.nct_id = prev.nct_id
