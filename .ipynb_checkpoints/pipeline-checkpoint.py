@@ -131,21 +131,12 @@ def run():
 
 def run_landscape(conditions):
     init_landscape_table()
-    init_market_sizing_table()
     
     for condition in conditions:
         print(f'Fetching landscape for {condition}')
         trials = fetch_trials_by_condition(condition)
         insert_landscape_trials(trials, condition)
         print(f'Inserted {len(trials)} trials for {condition}')
- 
-    print('\nRunning market sizing...')
-    results = run_market_sizing()
-    
-    if not results.empty:
-        print('\n=== MARKET SIZING ===')
-        print(results[['condition', 'annual_us_patients', 'addressable_market', 
-                       'trial_count', 'sponsor_count']].to_string(index=False))
- 
+
 if __name__ == '__main__':
     run()
