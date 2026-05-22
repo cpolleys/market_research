@@ -2,7 +2,7 @@ from scraper import fetch_trials, fetch_trials_by_condition
 from db import (init_db, init_company_table, insert_trials,
                 init_landscape_table, insert_landscape_trials,
                 init_publications_table, insert_publication,
-                was_recently_checked, mark_checked, get_conn)
+                mark_checked, get_conn)
 from mappings import (resolve_company_sec, fetch_sec_tickers, get_biotech_universe,
                       clean_name, sponsor_aliases)
 from signals import (detect_changes, generate_signals,
@@ -99,11 +99,6 @@ def run():
 
     for i, (nct_id, company, phase, status) in enumerate(eligible, start=1):
 
-        # Skip if checked within the last 7 days
-        if was_recently_checked(nct_id, days=7):
-            skipped_checks += 1
-            continue
-
         pub = get_latest_publication(nct_id)
         mark_checked(nct_id)
 
@@ -113,8 +108,7 @@ def run():
                 pub_found += 1
 
         if i % 100 == 0:
-            print(f'  [{i}/{len(eligible)}] checked... {pub_found} new publications so far '
-                  f'({skipped_checks} skipped as recently checked)')
+            print(f'  [{i}/{len(eligible)}] checked... {pub_found} new publications so far ')
 
     print(f'Done. {pub_found} new publications found, {skipped_checks} trials skipped as recently checked.')
 

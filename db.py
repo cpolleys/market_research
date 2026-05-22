@@ -128,7 +128,7 @@ def _has_changed(last, trial):
 
     new_enrollment = safe(trial.get('enrollment'))
     if last_enrollment is not None:
-        enrollment_changed = new_enrollment != str(last_enrollment)
+        enrollment_changed = str(new_enrollment) != str(last_enrollment)
     else:
         enrollment_changed = new_enrollment is not None
 
