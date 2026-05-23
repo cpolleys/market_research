@@ -9,6 +9,7 @@ from signals import (detect_changes, generate_signals,
                      detect_new_publications, generate_publication_signals)
 from pubmed import get_latest_publication
 from datetime import datetime, date
+from epidemiology import refresh_all_conditions, init_epidemiology_table
 
 
 def _get_nct_ids_for_publication_check():
@@ -131,6 +132,21 @@ def run_landscape(conditions):
         trials = fetch_trials_by_condition(condition)
         insert_landscape_trials(trials, condition)
         print(f'Inserted {len(trials)} trials for {condition}')
+        
+def run_epidemiology(conditions=None):
+    """
+    Refresh prevalence/incidence data for all conditions in disease_landscape,
+    or for a specific list of conditions.
+ 
+    If conditions is None, pulls the full list from the disease_landscape table.
+    Runs GHO API first, falls back to local GBD CSV for anything not covered.
+ 
+    Example:
+        run_epidemiology()
+        run_epidemiology(["Breast Cancer", "ST Elevation Myocardial Infarction"])
+    """
+    init_epidemiology_table()
+    refresh_all_conditions(conditions)
 
 if __name__ == '__main__':
     run()
