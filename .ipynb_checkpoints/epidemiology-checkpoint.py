@@ -36,6 +36,8 @@ GBD CSV Setup (one-time)
 3. The loader handles the standard IHME column layout automatically.
 """
 
+from __future__ import annotations
+
 import os
 import re
 import time
@@ -45,6 +47,7 @@ import requests
 import pandas as pd
 from datetime import datetime
 from difflib import get_close_matches
+from typing import Optional
 from db import get_conn
 
 # ---------------------------------------------------------------------------
@@ -56,7 +59,11 @@ GBD_CSV_PATH   = os.environ.get("C:\\Users\\chris\\Documents\\personal_projects"
 US_POPULATION  = 335_000_000   # used to convert global rates → US estimates when needed
 REQUEST_DELAY  = 0.3           # seconds between GHO API calls
 
-logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(levelname)s %(message)s",
+    handlers=[logging.StreamHandler(__import__("sys").stdout)]  # stdout = black in Jupyter, not red
+)
 log = logging.getLogger(__name__)
 
 
@@ -69,7 +76,7 @@ log = logging.getLogger(__name__)
 #   GET https://ghoapi.azureedge.net/api/Indicator?$filter=contains(IndicatorName,'diabetes')
 # ---------------------------------------------------------------------------
 
-GHO_CONDITION_MAP: dict[str, dict] = {
+GHO_CONDITION_MAP = {
     # ── Metabolic / Cardiovascular ──────────────────────────────────────────
     "type 2 diabetes": {
         "prevalence": "NCD_GLUC_04",        # Age-standardised prevalence of raised fasting blood glucose
@@ -224,7 +231,7 @@ GHO_CONDITION_MAP: dict[str, dict] = {
 # GBD uses its own cause hierarchy so the names differ from ClinicalTrials.
 # ---------------------------------------------------------------------------
 
-GBD_CONDITION_MAP: dict[str, str] = {
+GBD_CONDITION_MAP = {
     "cardiovascular disease":               "Cardiovascular diseases",
     "st elevation myocardial infarction":   "Ischemic heart disease",
     "heart failure":                        "Ischemic heart disease",
@@ -233,8 +240,8 @@ GBD_CONDITION_MAP: dict[str, str] = {
     "non-small cell lung cancer":           "Tracheal, bronchus, and lung cancer",
     "colorectal cancer":                    "Colon and rectum cancer",
     "pancreatic cancer":                    "Pancreatic cancer",
-    "sickle cell disease":                  "Hemoglobinopathies and hemolytic anemias",
-    "beta-thalassemia":                     "Hemoglobinopathies and hemolytic anemias",
+    "sickle cell disease":                  "Sickle cell disorders",
+    "beta-thalassemia":                     "Thalassemias",
     "amyotrophic lateral sclerosis":        "Motor neuron disease",
     "alzheimer":                            "Alzheimer's disease and other dementias",
     "parkinson":                            "Parkinson's disease",
@@ -447,16 +454,20 @@ def fetch_from_gho(condition: str) -> list[dict]:
 # Tier 2: GBD CSV
 # ---------------------------------------------------------------------------
 
-_gbd_df: pd.DataFrame | None = None  # module-level cache
+_gbd_df = None  # type: Optional[pd.DataFrame]  -- module-level cache
 
 
-def _load_gbd_csv() -> pd.DataFrame | None:
+def _load_gbd_csv():
     """
     Load and cache the GBD CSV export.  Returns None if the file is missing.
 
     Expected columns (standard IHME export layout):
         measure_name, location_name, sex_name, age_name,
         cause_name, metric_name, year, val, upper, lower
+
+    The GBD export also includes a population_group_name column when you
+    select sub-populations.  We filter to the standard (unrestricted)
+    population only to avoid inflated aggregate rows.
     """
     global _gbd_df
     if _gbd_df is not None:
@@ -482,6 +493,25 @@ def _load_gbd_csv() -> pd.DataFrame | None:
         log.error("GBD CSV missing expected columns: %s", missing)
         return None
 
+    # Filter to the standard (unrestricted) population group only.
+    # GBD exports include a population_group_name column when sub-populations
+    # are selected; keeping all groups produces duplicate inflated rows.
+    if "population_group_name" in df.columns:
+        standard_labels = {"standard population", "total population", "all populations", "all population"}
+        mask = df["population_group_name"].str.lower().isin(standard_labels)
+        if mask.any():
+            df = df[mask].copy()
+            log.info("Filtered to standard population group (%d rows)", len(df))
+        else:
+            # Log the unique values so the user knows what's in their CSV
+            unique_groups = df["population_group_name"].unique().tolist()
+            log.warning(
+                "population_group_name column found but no standard label matched. "
+                "Unique values: %s — keeping all rows. "
+                "Set the correct label in _load_gbd_csv() if results look inflated.",
+                unique_groups
+            )
+
     # keep only global + US rows for speed
     locs = {"global", "united states of america"}
     df = df[df["location_name"].str.lower().isin(locs)].copy()
@@ -496,6 +526,12 @@ def _load_gbd_csv() -> pd.DataFrame | None:
 
     _gbd_df = df
     log.info("GBD CSV loaded: %d rows after filtering", len(df))
+
+    # Print the unique population groups actually present so user can verify
+    if "population_group_name" in df.columns:
+        log.info("Population groups in filtered data: %s",
+                 df["population_group_name"].unique().tolist())
+
     return _gbd_df
 
 
@@ -641,8 +677,6 @@ def refresh_all_conditions(conditions: list[str] | None = None):
         refresh_all_conditions()                    # all conditions in DB
         refresh_all_conditions(["Breast Cancer"])   # specific list
     """
-    init_epidemiology_table()
-
     if conditions is None:
         conn = get_conn()
         cur  = conn.cursor()

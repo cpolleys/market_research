@@ -136,15 +136,40 @@ def run_landscape(conditions):
 def run_epidemiology(conditions=None):
     """
     Refresh prevalence/incidence data for all conditions in disease_landscape,
-    or for a specific list of conditions.
+    or for a specific condition string or list of conditions.
  
     If conditions is None, pulls the full list from the disease_landscape table.
+    If disease_landscape doesn't exist yet, logs a warning and exits gracefully.
     Runs GHO API first, falls back to local GBD CSV for anything not covered.
  
     Example:
         run_epidemiology()
+        run_epidemiology("Breast Cancer")
         run_epidemiology(["Breast Cancer", "ST Elevation Myocardial Infarction"])
     """
+    # Accept a bare string as a single-item list
+    if isinstance(conditions, str):
+        conditions = [conditions]
+ 
+    # If no conditions supplied, pull from disease_landscape — but guard
+    # against the table not existing yet (i.e. run_landscape hasn't been run)
+    if conditions is None:
+        conn = get_conn()
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='disease_landscape'"
+        )
+        if cur.fetchone() is None:
+            conn.close()
+            print(
+                "disease_landscape table not found — run run_landscape(conditions) first, "
+                "or pass conditions directly: run_epidemiology(['Sickle Cell Disease'])"
+            )
+            return
+        cur.execute("SELECT DISTINCT condition_searched FROM disease_landscape")
+        conditions = [r[0] for r in cur.fetchall()]
+        conn.close()
+ 
     init_epidemiology_table()
     refresh_all_conditions(conditions)
 
