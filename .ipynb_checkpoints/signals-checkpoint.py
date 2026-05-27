@@ -4,6 +4,7 @@ from datetime import datetime
 def detect_changes():
     conn = get_conn()
     cur = conn.cursor()
+    today = datetime.utcnow().date().isoformat()
 
     query = """
     WITH ranked AS (
@@ -11,7 +12,6 @@ def detect_changes():
             nct_id,
             company,
             status,
-            primary_completion_date,
             snapshot_date,
             ROW_NUMBER() OVER (PARTITION BY nct_id ORDER BY snapshot_date DESC) AS rn
         FROM trials
@@ -20,19 +20,17 @@ def detect_changes():
         curr.nct_id,
         curr.company,
         curr.status   AS new_status,
-        prev.status   AS old_status,
-        curr.primary_completion_date   AS new_pcd,
-        prev.primary_completion_date   AS old_pcd
+        prev.status   AS old_status
     FROM ranked curr
     JOIN ranked prev
         ON curr.nct_id = prev.nct_id
         AND curr.rn = 1
         AND prev.rn = 2
     WHERE curr.status != prev.status
-        OR curr.primary_completion_date != prev.primary_completion_date
+      AND curr.snapshot_date = ?
     """
 
-    cur.execute(query)
+    cur.execute(query, (today,))
     results = cur.fetchall()
     conn.close()
 
