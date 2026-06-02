@@ -2,9 +2,19 @@ import requests
 from datetime import datetime
 import calendar
 import time
+import html
+import re
 
 base_url = 'https://clinicaltrials.gov/api/v2/studies'
 
+def clean_text(text):
+    if not text:
+        return text
+    # Unescape HTML entities (&lt; → <, &amp; → &, etc.)
+    text = html.unescape(text)
+    # Strip any remaining HTML tags (<sup>, <sub>, <b>, etc.)
+    text = re.sub(r'<[^>]+>', '', text)
+    return text.strip()
 
 def normalize_date(date_str):
     """
@@ -62,12 +72,12 @@ def _parse_study(info):
     primary_raw = outcomes_module.get('primaryOutcomes', [])
     primary_outcomes = None
     if primary_raw:
-        primary_outcomes = ' | '.join([o.get('measure', '') for o in primary_raw if o.get('measure')])
+        primary_outcomes = ' | '.join([clean_text(o.get('measure', '')) for o in primary_raw if o.get('measure')])
 
     secondary_raw = outcomes_module.get('secondaryOutcomes', [])
     secondary_outcomes = None
     if secondary_raw:
-        secondary_outcomes = ' | '.join([o.get('measure', '') for o in secondary_raw if o.get('measure')])
+        secondary_outcomes = ' | '.join([clean_text(o.get('measure', '')) for o in secondary_raw if o.get('measure')])
 
     fda_flag = info.get('oversightModule', {}).get('isFdaRegulatedDrug')
     if fda_flag is True:
@@ -82,7 +92,7 @@ def _parse_study(info):
     return {
         'nct_id': info.get('identificationModule', {}).get('nctId'),
         'snapshot_date': datetime.utcnow().date().isoformat(),
-        'title': info.get('identificationModule', {}).get('briefTitle'),
+        'title': 'title': clean_text(info.get('identificationModule', {}).get('briefTitle')),
         'phase': phase,
         'fda_regulated': fda_flag,
         'status': info.get('statusModule', {}).get('overallStatus'),
