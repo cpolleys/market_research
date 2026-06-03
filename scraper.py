@@ -92,7 +92,7 @@ def _parse_study(info):
     return {
         'nct_id': info.get('identificationModule', {}).get('nctId'),
         'snapshot_date': datetime.utcnow().date().isoformat(),
-        'title': 'title': clean_text(info.get('identificationModule', {}).get('briefTitle')),
+        'title': clean_text(info.get('identificationModule', {}).get('briefTitle')),
         'phase': phase,
         'fda_regulated': fda_flag,
         'status': info.get('statusModule', {}).get('overallStatus'),
