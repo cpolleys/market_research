@@ -44,18 +44,17 @@ def detect_new_publications():
     """Return all publications first seen today."""
     conn = get_conn()
     cur = conn.cursor()
-    today = datetime.utcnow().date().isoformat()
- 
+    cutoff = (date.today() - timedelta(days=days)).isoformat()
+
     cur.execute("""
         SELECT p.nct_id, t.company, p.pmid, p.title, p.journal, p.pub_date
         FROM publications p
         JOIN (
-            SELECT nct_id, company
-            FROM trials
-            GROUP BY nct_id
+            SELECT nct_id, company FROM trials GROUP BY nct_id
         ) t ON p.nct_id = t.nct_id
-        WHERE p.first_seen = ?
-    """, (today,))
+        WHERE p.first_seen = date('now')
+        AND p.pub_date >= ?
+    """, (cutoff,))
  
     results = cur.fetchall()
     conn.close()
