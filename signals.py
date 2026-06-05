@@ -1,5 +1,5 @@
 from db import get_conn
-from datetime import datetime
+from datetime import datetime, date, timedelta
 
 def detect_changes():
     conn = get_conn()
@@ -40,7 +40,7 @@ def detect_changes():
 
     return results
 
-def detect_new_publications():
+def detect_new_publications(days=30):
     """Return all publications first seen today."""
     conn = get_conn()
     cur = conn.cursor()
