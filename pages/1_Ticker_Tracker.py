@@ -14,7 +14,7 @@ def init_tracker():
     conn.execute("""
         CREATE TABLE IF NOT EXISTS ticker_tracker (
             id            INTEGER PRIMARY KEY AUTOINCREMENT,
-            ticker        TEXT PRIMARY KEY,
+            ticker        TEXT NOT NULL,
             name          TEXT,
             note          TEXT,
             pmid          TEXT,
@@ -24,31 +24,6 @@ def init_tracker():
             price_history TEXT NOT NULL DEFAULT '[]'
         )
     """)
-    
-    # Migration: if the old table used ticker as PK, recreate it with surrogate id
-    cols = [r[1] for r in conn.execute("PRAGMA table_info(ticker_tracker)").fetchall()]
-    if "id" not in cols:
-        conn.executescript("""
-            ALTER TABLE ticker_tracker RENAME TO ticker_tracker_old;
-
-            CREATE TABLE ticker_tracker (
-                id            INTEGER PRIMARY KEY AUTOINCREMENT,
-                ticker        TEXT NOT NULL,
-                name          TEXT,
-                note          TEXT,
-                pmid          TEXT,
-                nct_id        TEXT,
-                added_at      TEXT NOT NULL,
-                added_price   REAL,
-                price_history TEXT NOT NULL DEFAULT '[]'
-            );
-
-            INSERT INTO ticker_tracker (ticker, name, note, pmid, nct_id, added_at, added_price, price_history)
-            SELECT ticker, name, note, pmid, nct_id, added_at, added_price, price_history
-            FROM ticker_tracker_old;
-
-            DROP TABLE ticker_tracker_old;
-        """)
     
     conn.commit()
     conn.close()
@@ -150,32 +125,35 @@ with st.expander("➕ Add a new ticker", expanded=True):
     if add_clicked:
         if not new_ticker:
             st.error("Enter a ticker symbol.")
-        elif new_ticker in [r["ticker"] for r in load_all()]:
-            st.warning(f"{new_ticker} is already tracked.")
         else:
-            conn = get_conn()
-            existing_ph = conn.execute(
-                "SELECT price_history FROM ticker_tracker WHERE ticker = ? ORDER BY added_at DESC LIMIT 1",
-                (new_ticker,)
-            ).fetchone()
-            conn.close()
+            with st.spinner(f"Fetching {new_ticker}\u2026"):
+                data = fetch_price(new_ticker)
+            if not data:
+                st.error(f"Could not fetch price for {new_ticker}. Check the symbol.")
+            else:
+                conn = get_conn()
+                existing_ph = conn.execute(
+                    "SELECT price_history FROM ticker_tracker WHERE ticker = ? ORDER BY added_at DESC LIMIT 1",
+                    (new_ticker,)
+                ).fetchone()
+                conn.close()
+ 
+                price_history = json.loads(existing_ph[0]) if existing_ph else [
+                    {"date": date.today().isoformat(), "price": data["price"]}
+                ]
 
-            price_history = json.loads(existing_ph[0]) if existing_ph else [
-                {"date": date.today().isoformat(), "price": data["price"]}
-            ]
-
-            save_entry({
-                "ticker":        new_ticker,
-                "name":          data["name"],
-                "note":          new_note,
-                "pmid":          new_pmid,
-                "nct_id":        new_nct,
-                "added_at":      datetime.utcnow().isoformat(),
-                "added_price":   data["price"],
-                "price_history": price_history,
-            })
-            st.success(f"Added entry for {new_ticker} @ ${data['price']:.2f}")
-            st.experimental_rerun()
+                save_entry({
+                        "ticker":        new_ticker,
+                        "name":          data["name"],
+                        "note":          new_note,
+                        "pmid":          new_pmid,
+                        "nct_id":        new_nct,
+                        "added_at":      datetime.utcnow().isoformat(),
+                        "added_price":   data["price"],
+                        "price_history": price_history,
+                })
+                st.success(f"Added entry for {new_ticker} @ ${data['price']:.2f}")
+                st.experimental_rerun()
 
 st.markdown("---")
 
