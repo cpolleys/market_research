@@ -17,11 +17,17 @@ def init_tracker():
             name          TEXT,
             note          TEXT,
             pmid          TEXT,
+            nct_id        TEXT,
             added_at      TEXT NOT NULL,
             added_price   REAL,
             price_history TEXT NOT NULL DEFAULT '[]'
         )
     """)
+    # add nct_id column if it doesn't exist yet (for existing databases)
+    try:
+        conn.execute("ALTER TABLE ticker_tracker ADD COLUMN nct_id TEXT")
+    except Exception:
+        pass
     conn.commit()
     conn.close()
 
@@ -45,7 +51,7 @@ def fetch_price(ticker: str):
 def load_all():
     conn = get_conn()
     rows = conn.execute(
-        "SELECT ticker, name, note, pmid, added_at, added_price, price_history "
+        "SELECT ticker, name, note, pmid, nct_id, added_at, added_price, price_history "
         "FROM ticker_tracker ORDER BY added_at DESC"
     ).fetchall()
     conn.close()
@@ -54,20 +60,22 @@ def load_all():
         "name":          r[1],
         "note":          r[2],
         "pmid":          r[3],
-        "added_at":      r[4],
-        "added_price":   r[5],
-        "price_history": json.loads(r[6]),
+        "nct_id":        r[4],
+        "added_at":      r[5],
+        "added_price":   r[6],
+        "price_history": json.loads(r[7]),
     } for r in rows]
 
 def save_ticker(entry: dict):
     conn = get_conn()
     conn.execute("""
         INSERT OR REPLACE INTO ticker_tracker
-            (ticker, name, note, pmid, added_at, added_price, price_history)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+            (ticker, name, note, pmid, nct_id, added_at, added_price, price_history)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         entry["ticker"], entry.get("name"), entry.get("note"), entry.get("pmid"),
-        entry["added_at"], entry.get("added_price"), json.dumps(entry.get("price_history", [])),
+        entry.get("nct_id"), entry["added_at"], entry.get("added_price"),
+        json.dumps(entry.get("price_history", [])),
     ))
     conn.commit()
     conn.close()
@@ -106,12 +114,13 @@ st.caption("Track stock prices for companies with notable trial results. Prices 
 
 # Add form
 with st.expander("➕ Add a new ticker", expanded=True):
-    c1, c2, c3, c4 = st.columns([1, 1.4, 2.6, 1])
+    c1, c2, c3, c4, c5 = st.columns([1, 1.4, 1.4, 2.6, 1])
     new_ticker = c1.text_input("Ticker", placeholder="VRTX").strip().upper()
-    new_pmid   = c2.text_input("PMID or NCT ID", placeholder="41831073").strip()
-    new_note   = c3.text_input("Note", placeholder="Phase 3 PDAC — promising PFS data").strip()
-    c4.write("")
-    add_clicked = c4.button("Add")
+    new_nct    = c2.text_input("NCT ID", placeholder="NCT06625320").strip()
+    new_pmid   = c3.text_input("PMID", placeholder="41831073").strip()
+    new_note   = c4.text_input("Note", placeholder="Phase 3 PDAC — promising PFS data").strip()
+    c5.write("")
+    add_clicked = c5.button("Add")
 
     if add_clicked:
         if not new_ticker:
@@ -129,6 +138,7 @@ with st.expander("➕ Add a new ticker", expanded=True):
                     "name":          data["name"],
                     "note":          new_note,
                     "pmid":          new_pmid,
+                    "nct_id":        new_nct,
                     "added_at":      datetime.utcnow().isoformat(),
                     "added_price":   data["price"],
                     "price_history": [{"date": date.today().isoformat(), "price": data["price"]}],
@@ -168,12 +178,15 @@ for entry in tickers:
             st.markdown(f"### {entry['ticker']}  {entry['name'] if entry['name'] != entry['ticker'] else ''}")
             if entry.get("note"):
                 st.caption(entry["note"])
-            pmid = entry.get("pmid", "")
-            if pmid:
-                url = f"https://clinicaltrials.gov/study/{pmid}" if pmid.startswith("NCT") else f"https://pubmed.ncbi.nlm.nih.gov/{pmid}"
-                st.caption(f"Added {entry['added_at'][:10]} @ ${added:.2f}  ·  [{pmid} ↗]({url})")
-            else:
-                st.caption(f"Added {entry['added_at'][:10]} @ ${added:.2f}")
+            meta_parts = [f"Added {entry['added_at'][:10]} @ ${added:.2f}"]
+
+            if entry.get("nct_id"):
+                meta_parts.append(f"[{entry['nct_id']} ↗](https://clinicaltrials.gov/study/{entry['nct_id']})")
+
+            if entry.get("pmid"):
+                meta_parts.append(f"[PMID {entry['pmid']} ↗](https://pubmed.ncbi.nlm.nih.gov/{entry['pmid']})")
+
+            st.caption("  ·  ".join(meta_parts))
 
         with right:
             if st.button("↻", key=f"ref_{entry['ticker']}"):
